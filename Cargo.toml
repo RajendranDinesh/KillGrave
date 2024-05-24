@@ -1,0 +1,14 @@
+[package]
+name = "killgrave"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.1"
+chrono = "0.4.38"
+hostname = "0.4.0"
+os_info = "3.8.2"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+serde_json = "1.0.117"
+tokio = { version = "1", features = ["full"] }
+winapi = { version = "0.3.9", features = ["winuser", "winnt", "processthreadsapi", "psapi", "winnls"] }
